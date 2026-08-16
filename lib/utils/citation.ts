@@ -40,9 +40,11 @@ export function extractCitationMaps(
   if (!message.parts) return citationMaps
 
   message.parts.forEach((part: any) => {
-    // Check for search tool output
+    // Check for search and fetch tool output. Fetch outputs share the
+    // SearchResults shape (a single-item results array) and carry their own
+    // toolCallId, so fetched pages resolve as citation targets too.
     if (
-      part.type === 'tool-search' &&
+      (part.type === 'tool-search' || part.type === 'tool-fetch') &&
       part.state === 'output-available' &&
       part.output &&
       part.toolCallId

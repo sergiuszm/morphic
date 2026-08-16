@@ -2,7 +2,7 @@ import { type JSONValue, tool, UIToolInvocation } from 'ai'
 
 import { ToolFailureError } from '@/lib/errors/tool-error'
 import { getSearchSchemaForModel } from '@/lib/schema/search'
-import { SearchResults } from '@/lib/types'
+import { SearchResultItem, SearchResults } from '@/lib/types'
 import {
   getGeneralSearchProviderType,
   getSearchToolDescription
@@ -172,6 +172,12 @@ export function createSearchTool(fullModel: string) {
     // model to embed URLs verbatim from this array. toolCallId MUST stay: the
     // prompt cites as [number](#toolCallId), so the model reads the id from
     // here.
+    //
+    // Each result additionally gets a ready-made `cite` string. Models cannot
+    // reliably reconstruct "[position](#toolCallId)" by counting unnumbered
+    // array entries across dozens of tool calls — citations end up pointing at
+    // the wrong result. A copyable string removes the bookkeeping entirely.
+    // Only the model view is decorated; the persisted/UI output is unchanged.
     toModelOutput: ({ output }) => {
       if (!output || typeof output !== 'object') {
         return { type: 'json', value: (output ?? null) as JSONValue }
@@ -181,6 +187,15 @@ export function createSearchTool(fullModel: string) {
       }
       delete modelView.citationMap
       delete modelView.state
+      const toolCallId = modelView.toolCallId
+      if (typeof toolCallId === 'string' && Array.isArray(modelView.results)) {
+        modelView.results = (modelView.results as SearchResultItem[]).map(
+          (result, index) => ({
+            cite: `[${index + 1}](#${toolCallId})`,
+            ...result
+          })
+        )
+      }
       return { type: 'json', value: modelView as JSONValue }
     }
   })

@@ -235,6 +235,28 @@ describe('processCitations', () => {
       expect(maps.toolCall1[2]).toEqual(results[1])
     })
 
+    it('makes fetched pages citable via tool-fetch parts', () => {
+      const fetched = [
+        { title: 'Product page', url: 'https://shop.example/p/1', content: 'c' }
+      ]
+      const message = {
+        id: 'm2',
+        role: 'assistant',
+        parts: [
+          {
+            type: 'tool-fetch',
+            state: 'output-available',
+            toolCallId: 'fetchCall1',
+            output: { results: fetched, images: [], query: '' }
+          }
+        ]
+      } as unknown as UIMessage
+
+      const maps = extractCitationMaps(message)
+
+      expect(maps.fetchCall1[1]).toEqual(fetched[0])
+    })
+
     it('prefers an existing citationMap (older persisted messages)', () => {
       const legacy = {
         1: { title: 'Legacy', url: 'https://legacy.example.com', content: 'c' }

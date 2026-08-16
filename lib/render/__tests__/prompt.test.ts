@@ -50,9 +50,10 @@ describe('render prompts', () => {
     }
   )
 
-  test('numbers citations by result position within a search', () => {
-    expect(getQuickModePrompt()).toContain('position of the cited result')
-    expect(getAdaptiveModePrompt()).toContain('result order within each search')
+  test('instructs copying ready-made cite strings instead of counting', () => {
+    expect(getQuickModePrompt()).toContain('COPY its "cite"')
+    expect(getAdaptiveModePrompt()).toContain('COPY its "cite"')
+    expect(getQuickModePrompt()).not.toContain('position of the cited result')
   })
 
   test.each([

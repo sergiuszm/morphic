@@ -47,7 +47,13 @@ describe('search tool toModelOutput', () => {
   it('preserves the fields the model needs to answer and to cite', async () => {
     const value = await getModelValue(fullOutput)
 
-    expect(value.results).toEqual(fullOutput.results)
+    // Each result gains a copyable cite string; the original fields survive.
+    expect(value.results).toEqual(
+      fullOutput.results.map((result, index) => ({
+        cite: `[${index + 1}](#call_123)`,
+        ...result
+      }))
+    )
     expect(value.query).toBe('test query')
     expect(value.number_of_results).toBe(2)
     // toolCallId is required: the prompt cites as [number](#toolCallId).

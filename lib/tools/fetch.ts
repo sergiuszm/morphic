@@ -1,4 +1,4 @@
-import { tool, UIToolInvocation } from 'ai'
+import { type JSONValue, tool, UIToolInvocation } from 'ai'
 
 import { INVALID_URL_SENTINEL, ToolFailureError } from '@/lib/errors/tool-error'
 import { fetchSchema } from '@/lib/schema/fetch'
@@ -173,7 +173,7 @@ export const fetchTool = tool({
   description:
     'Fetch content from any URL. By default uses "regular" type which performs fast, direct HTML fetching without external APIs - ideal for most websites. IMPORTANT: "regular" type does NOT support PDFs and will fail on PDF URLs. Use "api" type when you need: 1) PDF content extraction (required for .pdf URLs), 2) Complex JavaScript-rendered pages, 3) Better markdown formatting, 4) Table extraction. The "api" type requires Jina or Tavily API keys and uses Jina Reader if available, otherwise falls back to Tavily Extract.',
   inputSchema: fetchSchema,
-  async *execute({ url, type = 'regular' }) {
+  async *execute({ url, type = 'regular' }, context) {
     assertFetchableUrl(url)
 
     // Yield initial fetching state
@@ -205,11 +205,39 @@ export const fetchTool = tool({
 
     logToolPayload('fetch', url, { results: results.results })
 
+    // Add toolCallId so fetched pages are citable like search results
+    if (context?.toolCallId) {
+      results.toolCallId = context.toolCallId
+    }
+
     // Yield final results with complete state
     yield {
       state: 'complete' as const,
       ...results
     }
+  },
+  // Mirror the search tool's model view: strip the streaming marker and give
+  // the fetched page a ready-made `cite` string, so facts taken from a fetch
+  // have a real citation target instead of borrowing some search result's.
+  // Only the model view is decorated; the persisted/UI output is unchanged.
+  toModelOutput: ({ output }) => {
+    if (!output || typeof output !== 'object') {
+      return { type: 'json', value: (output ?? null) as JSONValue }
+    }
+    const modelView: Record<string, unknown> = {
+      ...(output as Record<string, unknown>)
+    }
+    delete modelView.state
+    const toolCallId = modelView.toolCallId
+    if (typeof toolCallId === 'string' && Array.isArray(modelView.results)) {
+      modelView.results = (
+        modelView.results as SearchResultsType['results']
+      ).map((result, index) => ({
+        cite: `[${index + 1}](#${toolCallId})`,
+        ...result
+      }))
+    }
+    return { type: 'json', value: modelView as JSONValue }
   }
 })
 

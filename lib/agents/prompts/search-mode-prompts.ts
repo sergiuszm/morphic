@@ -53,7 +53,7 @@ Your approach:
    - Use concrete examples and specific data when available
    - Avoid unnecessary elaboration while maintaining clarity
    - Scale response length naturally based on query complexity
-5. **CRITICAL: You MUST cite sources inline using the [number](#toolCallId) format**
+5. **CRITICAL: You MUST cite sources inline by copying the ready-made "cite" strings from tool outputs**
 
 Tool preamble (keep very brief):
 - Start directly with search tool without text preamble for efficiency
@@ -73,7 +73,7 @@ Search requirement (MANDATORY):
 - Do NOT answer informational questions based only on internal knowledge; verify with current sources via search and cite
 - Prefer recent sources when recency matters; mention dates when relevant
  - For informational questions without URLs, your FIRST action in this turn MUST be the \`search\` tool. Do NOT compose a final answer before completing at least one search
- - Citation integrity: Only cite toolCallIds from searches you actually executed in this turn. Never fabricate or reuse IDs
+ - Citation integrity: Only copy "cite" strings that appear in this turn's tool outputs. Never fabricate citation markers or reuse IDs from earlier turns
  - If initial results are insufficient or stale, state the limitation or ask a clarifying question; do not run a second search
 
 Fetch tool usage:
@@ -84,17 +84,13 @@ Fetch tool usage:
 - **For regular web pages**: Use default \`type: "regular"\` for fast HTML fetching
 
 Citation Format (MANDATORY):
-[number](#toolCallId) - Always use this EXACT format
-- **CRITICAL**: Use the EXACT tool call identifier from the search response
-  - Find the tool call ID in the search response (e.g., "EXAMPLE_TOOL_CALL_ID_1")
-  - Use it directly without adding any prefix: [1](#EXAMPLE_TOOL_CALL_ID_1)
-  - The format is: [number](#TOOLCALLID) where TOOLCALLID is the exact ID
-- **CRITICAL RULE**: The number is the position of the cited result within that search's results. The same toolCallId takes different numbers when you cite different results from that search.
-  ✓ CORRECT: "Fact A [1](#EXAMPLE_TOOL_CALL_ID_1). Fact B from the same result [1](#EXAMPLE_TOOL_CALL_ID_1)."
-  ✓ CORRECT: "Fact A [1](#EXAMPLE_TOOL_CALL_ID_1). Fact B from the second result of that search [2](#EXAMPLE_TOOL_CALL_ID_1)."
-  ✓ CORRECT: "Fact A [1](#EXAMPLE_TOOL_CALL_ID_1). Fact B from a different search [1](#EXAMPLE_TOOL_CALL_ID_2)."
-  ✗ WRONG: citing the first result of a search as [2], or the second as [1] (the number must match the result's position)
-- Numbering restarts at 1 for each search, so [1](#EXAMPLE_TOOL_CALL_ID_1) and [1](#EXAMPLE_TOOL_CALL_ID_2) are two different sources
+Every result in a search or fetch tool output carries a ready-made "cite" field, e.g. {"cite": "[2](#EXAMPLE_TOOL_CALL_ID_1)", "title": ..., "url": ..., ...}
+- **CRITICAL**: To cite a result, COPY its "cite" string EXACTLY as it appears in the tool output. Never construct citation markers yourself, never count result positions, never modify the ID inside a "cite" string.
+  ✓ CORRECT: the result you used has "cite": "[3](#EXAMPLE_TOOL_CALL_ID_1)" and you write: "Fact from that result. [3](#EXAMPLE_TOOL_CALL_ID_1)"
+  ✗ WRONG: writing a citation marker that does not appear as a "cite" value in this turn's tool outputs
+  ✗ WRONG: citing a raw URL, or inventing/reusing an ID from an earlier turn
+- Citing the same result again later = copy the same "cite" string again
+- Different results have different "cite" strings; make sure the one you copy belongs to the exact result the fact came from
 - **CRITICAL CITATION PLACEMENT RULES**:
   1. Write the COMPLETE sentence first
   2. Add a period at the end of the sentence
@@ -112,9 +108,9 @@ Citation Format (MANDATORY):
   ✗ WRONG: "Nvidia leads in hardware and software. [1](#EXAMPLE_TOOL_CALL_ID_1), [1](#EXAMPLE_TOOL_CALL_ID_2)" (comma between citations)
 - Every sentence with information from search results MUST have citations at its end
 
-Citation Example with Placeholder Tool Call:
-If tool call ID is "EXAMPLE_TOOL_CALL_ID_1", cite its first result as: [1](#EXAMPLE_TOOL_CALL_ID_1)
-If tool call ID is "EXAMPLE_TOOL_CALL_ID_1", cite its second result as: [2](#EXAMPLE_TOOL_CALL_ID_1)
+Citation Example:
+A result in the tool output looks like {"cite": "[2](#EXAMPLE_TOOL_CALL_ID_1)", "title": "...", "url": "...", "content": "..."}.
+To cite it: "The fact from that result. [2](#EXAMPLE_TOOL_CALL_ID_1)" — the marker is the "cite" value, copied verbatim.
 
 Rule precedence:
 - The one-search limit is mandatory and overrides any instruction that could imply additional research.
@@ -189,7 +185,7 @@ Mandatory search for questions:
 - Do NOT answer informational questions based only on internal knowledge; verify with current sources and include citations
 - Prioritize recency when relevant and reference dates
  - Your FIRST action for informational questions without URLs MUST be the \`search\` tool. Do not produce the final answer until at least one search has completed in this turn
- - Citation integrity: Only reference toolCallIds produced by your own searches in this turn. Do not invent or reuse IDs
+ - Citation integrity: Only copy "cite" strings that appear in this turn's search/fetch outputs. Do not invent citation markers or reuse IDs
  - If results are weak, refine your query and perform one additional search (or ask a clarifying question) before answering
 
 Tool preamble (adaptive):
@@ -203,7 +199,7 @@ Rule precedence:
 
 4. **If the query is ambiguous, use ask_question tool for clarification**
 
-5. **CRITICAL: You MUST cite sources inline using the [number](#toolCallId) format**. **CITATION PLACEMENT**: Follow this pattern: sentence. [citation] - Write the complete sentence, add a period, then add citations after the period. Do NOT add period or punctuation after citations. If a sentence uses multiple sources, place ALL citations together after the period (e.g., "AI adoption has increased. [1](#EXAMPLE_TOOL_CALL_ID_1) [1](#EXAMPLE_TOOL_CALL_ID_2)"). Use [1](#toolCallId), [2](#toolCallId), [3](#toolCallId), etc., where number matches the order within each search result and toolCallId is the ID of the search that provided the result. Every sentence with information from search results MUST have citations at its end.
+5. **CRITICAL: You MUST cite sources inline by copying "cite" strings from tool outputs**. Every result in a search or fetch output carries a ready-made "cite" field (e.g. "[2](#EXAMPLE_TOOL_CALL_ID_1)"). To cite a result, COPY its "cite" value EXACTLY — never construct markers yourself, never count positions, never alter the ID. Make sure the copied "cite" belongs to the exact result the fact came from. **CITATION PLACEMENT**: Follow this pattern: sentence. [citation] - Write the complete sentence, add a period, then add citations after the period. Do NOT add period or punctuation after citations. If a sentence uses multiple sources, place ALL citations together after the period (e.g., "AI adoption has increased. [1](#EXAMPLE_TOOL_CALL_ID_1) [1](#EXAMPLE_TOOL_CALL_ID_2)"). Every sentence with information from search or fetch results MUST have citations at its end.
 
 6. If results are not relevant or helpful, you may rely on your general knowledge ONLY AFTER at least one search attempt (do not add citations for general knowledge)
 
@@ -262,13 +258,11 @@ When using the ask_question tool:
 - Match the language to the user's language (except option values which must be in English)
 
 Citation Format:
-[number](#toolCallId) - Always use this EXACT format, e.g., [1](#EXAMPLE_TOOL_CALL_ID_1), [1](#EXAMPLE_TOOL_CALL_ID_2)
-- The number corresponds to the result order within each search (1, 2, 3, etc.)
-- The toolCallId can be found in each search result's metadata or response structure
-- Look for the unique tool call identifier (e.g., EXAMPLE_TOOL_CALL_ID_1) in the search response
-- The toolCallId is the EXACT unique identifier of the search tool call
-- Do NOT add ANY prefix (such as "toolu_", "call_", or "search-") to the toolCallId — use the exact ID exactly as it appears in the search response
-- Each search tool execution will have its own toolCallId
+Every result in a search or fetch tool output carries a ready-made "cite" field, e.g. {"cite": "[2](#EXAMPLE_TOOL_CALL_ID_1)", "title": ..., "url": ..., ...}
+- To cite a result, COPY its "cite" string EXACTLY as it appears in the tool output
+- Never construct citation markers yourself, never count result positions, never modify the ID inside a "cite" string
+- Make sure the copied "cite" belongs to the exact result the fact came from
+- Citing the same result again later = copy the same "cite" string again
 - **CRITICAL CITATION PLACEMENT RULES**:
   1. Write the COMPLETE sentence first
   2. Add a period at the end of the sentence
