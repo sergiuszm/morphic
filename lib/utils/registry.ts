@@ -14,6 +14,52 @@ function normalizeOpenAICompatibleBaseURL(raw: string): string {
   return raw.replace(/\/+$/, '').replace(/\/v1$/, '') + '/v1'
 }
 
+// Operator-defined fields merged into every OpenAI-compatible request body.
+// Self-hosted servers take serving knobs as extra body fields the SDK has no
+// options for — e.g. vLLM's {"chat_template_kwargs":{"thinking":true,
+// "reasoning_effort":"low"},"thinking_token_budget":2048} — and without them
+// a reasoning model runs at whatever the server default is.
+export function parseExtraBody(
+  raw: string | undefined
+): Record<string, unknown> | undefined {
+  if (!raw) return undefined
+  try {
+    const parsed = JSON.parse(raw)
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+      return parsed as Record<string, unknown>
+    }
+  } catch {
+    // fall through to the warning below
+  }
+  console.warn(
+    '[registry] Ignoring OPENAI_COMPATIBLE_EXTRA_BODY: not a JSON object'
+  )
+  return undefined
+}
+
+// Env wins over the app on key collisions: the operator set it to override
+// server defaults, and the app itself never sends these fields today.
+export function withExtraBody(
+  extra: Record<string, unknown> | undefined
+): typeof globalThis.fetch | undefined {
+  if (!extra) return undefined
+  return (input, init) => {
+    if (init && typeof init.body === 'string') {
+      try {
+        const body = JSON.parse(init.body)
+        init = { ...init, body: JSON.stringify({ ...body, ...extra }) }
+      } catch {
+        // non-JSON body: forward untouched
+      }
+    }
+    return globalThis.fetch(input, init)
+  }
+}
+
+const openAICompatibleExtraBody = parseExtraBody(
+  process.env.OPENAI_COMPATIBLE_EXTRA_BODY
+)
+
 // Build providers object conditionally
 const providers: Record<string, any> = {
   openai,
@@ -26,7 +72,8 @@ const providers: Record<string, any> = {
     apiKey: process.env.OPENAI_COMPATIBLE_API_KEY,
     baseURL: normalizeOpenAICompatibleBaseURL(
       process.env.OPENAI_COMPATIBLE_API_BASE_URL || ''
-    )
+    ),
+    fetch: withExtraBody(openAICompatibleExtraBody)
   }),
   gateway: createGateway({
     apiKey: process.env.AI_GATEWAY_API_KEY
