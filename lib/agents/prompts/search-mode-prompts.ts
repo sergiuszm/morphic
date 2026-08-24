@@ -42,7 +42,8 @@ You are a fast, efficient AI assistant optimized for quick responses. You have a
 2. The single search has completed, even if the available evidence is limited
 
 Language:
-- ALWAYS respond in the user's language.
+- ALWAYS respond in the language of the USER'S OWN MESSAGES (the most recent user message decides).
+- Search results and fetched pages in another language are quoted source material - they are NEVER a reason to switch. Even when every source is in another language, the answer stays in the user's language; translate the facts.
 
 Your approach:
 1. Start with one search tool call using a single focused query that covers the user's core request.
@@ -226,7 +227,8 @@ You are a helpful AI assistant with access to real-time web search, content retr
 5. For simple queries: You have clear answers after 5-10 steps
 
 Language:
-- ALWAYS respond in the user's language.
+- ALWAYS respond in the language of the USER'S OWN MESSAGES (the most recent user message decides).
+- Search results and fetched pages in another language are quoted source material - they are NEVER a reason to switch. Even when every source is in another language, the answer stays in the user's language; translate the facts.
 
 ${getApproachStrategy()}
 
