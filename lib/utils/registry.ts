@@ -19,8 +19,17 @@ function normalizeOpenAICompatibleBaseURL(raw: string): string {
 // options for — e.g. vLLM's {"chat_template_kwargs":{"thinking":true,
 // "reasoning_effort":"low"},"thinking_token_budget":2048} — and without them
 // a reasoning model runs at whatever the server default is.
+//
+// Three env vars form profiles: OPENAI_COMPATIBLE_EXTRA_BODY applies to every
+// request (background tasks included); _QUICK and _ADAPTIVE merge over it for
+// chat turns in that search mode, selected via a header the researcher sets
+// (the SDK's providerOptions schema strips unknown keys, so a header through
+// the provider's fetch is the only per-request channel that survives).
+export const EFFORT_PROFILE_HEADER = 'x-morphic-effort-profile'
+
 export function parseExtraBody(
-  raw: string | undefined
+  raw: string | undefined,
+  envName: string
 ): Record<string, unknown> | undefined {
   if (!raw) return undefined
   try {
@@ -31,20 +40,46 @@ export function parseExtraBody(
   } catch {
     // fall through to the warning below
   }
-  console.warn(
-    '[registry] Ignoring OPENAI_COMPATIBLE_EXTRA_BODY: not a JSON object'
-  )
+  console.warn(`[registry] Ignoring ${envName}: not a JSON object`)
   return undefined
+}
+
+export interface ExtraBodyProfiles {
+  base?: Record<string, unknown>
+  quick?: Record<string, unknown>
+  adaptive?: Record<string, unknown>
 }
 
 // Env wins over the app on key collisions: the operator set it to override
 // server defaults, and the app itself never sends these fields today.
 export function withExtraBody(
-  extra: Record<string, unknown> | undefined
+  profiles: ExtraBodyProfiles | undefined
 ): typeof globalThis.fetch | undefined {
-  if (!extra) return undefined
+  if (!profiles || (!profiles.base && !profiles.quick && !profiles.adaptive)) {
+    return undefined
+  }
   return (input, init) => {
-    if (init && typeof init.body === 'string') {
+    let profile: 'quick' | 'adaptive' | undefined
+    if (init?.headers) {
+      try {
+        const headers = new Headers(init.headers as HeadersInit)
+        const value = headers.get(EFFORT_PROFILE_HEADER)
+        if (value === 'quick' || value === 'adaptive') {
+          profile = value
+        }
+        if (value !== null) {
+          headers.delete(EFFORT_PROFILE_HEADER)
+          init = { ...init, headers }
+        }
+      } catch {
+        // unusual headers shape: forward as-is, base profile applies
+      }
+    }
+    const extra = {
+      ...profiles.base,
+      ...(profile ? profiles[profile] : undefined)
+    }
+    if (init && typeof init.body === 'string' && Object.keys(extra).length) {
       try {
         const body = JSON.parse(init.body)
         init = { ...init, body: JSON.stringify({ ...body, ...extra }) }
@@ -56,9 +91,20 @@ export function withExtraBody(
   }
 }
 
-const openAICompatibleExtraBody = parseExtraBody(
-  process.env.OPENAI_COMPATIBLE_EXTRA_BODY
-)
+const openAICompatibleExtraBody: ExtraBodyProfiles = {
+  base: parseExtraBody(
+    process.env.OPENAI_COMPATIBLE_EXTRA_BODY,
+    'OPENAI_COMPATIBLE_EXTRA_BODY'
+  ),
+  quick: parseExtraBody(
+    process.env.OPENAI_COMPATIBLE_EXTRA_BODY_QUICK,
+    'OPENAI_COMPATIBLE_EXTRA_BODY_QUICK'
+  ),
+  adaptive: parseExtraBody(
+    process.env.OPENAI_COMPATIBLE_EXTRA_BODY_ADAPTIVE,
+    'OPENAI_COMPATIBLE_EXTRA_BODY_ADAPTIVE'
+  )
+}
 
 // Build providers object conditionally
 const providers: Record<string, any> = {

@@ -8,7 +8,7 @@ import { createQuestionTool } from '../tools/question'
 import { createSearchTool } from '../tools/search'
 import { createTodoTools } from '../tools/todo'
 import { SearchMode } from '../types/search'
-import { getModel } from '../utils/registry'
+import { EFFORT_PROFILE_HEADER, getModel } from '../utils/registry'
 import { isTracingEnabled } from '../utils/telemetry'
 
 import { appendRelatedQuestionsReminder } from './prompts/related-questions-reminder'
@@ -151,6 +151,13 @@ export function createResearcher({
         })
       }),
       ...(providerOptions && { providerOptions }),
+      // Tells the openai-compatible provider's fetch wrapper which extra-body
+      // profile applies (quick vs adaptive); the wrapper strips the header.
+      ...(modelConfig?.providerId === 'openai-compatible' && {
+        headers: {
+          [EFFORT_PROFILE_HEADER]: searchMode === 'quick' ? 'quick' : 'adaptive'
+        }
+      }),
       // Spans join the parent Langfuse trace via OTel context propagation
       experimental_telemetry: {
         isEnabled: isTracingEnabled(),
