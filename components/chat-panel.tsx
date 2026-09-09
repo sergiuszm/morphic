@@ -765,6 +765,18 @@ export function ChatPanel({
             className="resize-none w-full min-h-12 bg-transparent border-0 p-3 md:p-4 text-sm placeholder:text-muted-foreground focus-visible:outline-hidden disabled:cursor-not-allowed disabled:opacity-50"
             onChange={handleInputChange}
             onPaste={e => {
+              // Clipboard files (a screenshot, a copied picture) take the
+              // attach button's upload path. The text branches below never
+              // apply to them: an image paste carries no text at all.
+              const pastedFiles = Array.from(
+                e.clipboardData.files ?? []
+              ).filter(file => ALLOWED_FILE_TYPES.includes(file.type))
+              if (pastedFiles.length > 0 && !isGuest) {
+                e.preventDefault()
+                captureClient('file_pasted', { count: pastedFiles.length })
+                void uploadSelectedFiles(pastedFiles)
+                return
+              }
               const text = e.clipboardData.getData('text')
               const trimmed = text.trim()
               // Only when the textarea is empty — a URL pasted mid-sentence
